@@ -108,3 +108,40 @@ target_fps = 0
 
     with pytest.raises(ValueError):
         load_config(config_path)
+
+
+def test_save_config_persists_calibrated_regions(tmp_path: Path) -> None:
+    from radar_overlay.config import save_config
+
+    config_path = tmp_path / "calibrated.toml"
+    config = AppConfig(
+        capture=CaptureSettings(10, 20, 300, 200),
+        overlay=OverlaySettings(
+            800,
+            100,
+            600,
+            400,
+            0.8,
+            True,
+            True,
+            False,
+            "circle",
+            False,
+            False,
+            False,
+            False,
+        ),
+        performance=PerformanceSettings(240),
+    )
+
+    save_config(config, config_path)
+    assert load_config(config_path) == config
+
+
+def test_preset_path_uses_safe_toml_name() -> None:
+    from radar_overlay.config import preset_path
+
+    assert preset_path("office-1440p") == Path("presets/office-1440p.toml")
+    assert preset_path("circle.toml") == Path("presets/circle.toml")
+    with pytest.raises(ValueError):
+        preset_path("../outside")

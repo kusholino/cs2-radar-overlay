@@ -12,6 +12,11 @@ height = 300
 opacity = 1.0
 click_through = true
 always_on_top = true
+shape = "rectangle"
+show_fps = true
+show_refresh_hz = true
+show_capture_ms = false
+show_render_ms = false
 
 [performance]
 target_fps = 300

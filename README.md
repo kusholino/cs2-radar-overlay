@@ -49,6 +49,8 @@ This project is intentionally restricted to:
 - transparent borderless overlay rendering
 - click-through and always-on-top options
 - configurable coordinates and update rate
+- multi-monitor virtual-desktop calibration and named presets
+- runtime HUD and global overlay hotkeys
 
 The project does not do any of the following:
 
@@ -92,6 +94,56 @@ The project does not do any of the following:
    python -m radar_overlay.main --config config.toml
    ```
 
+## Multi-monitor presets
+
+Calibration spans the complete Windows virtual desktop, including monitors positioned left or above the primary display. Negative coordinates are supported for those layouts.
+
+Save a calibrated setup as a named preset:
+
+```powershell
+python -m radar_overlay.main --calibrate --preset office-1440p --shape circle
+```
+
+This writes `presets/office-1440p.toml`. Load it later with:
+
+```powershell
+python -m radar_overlay.main --preset office-1440p
+```
+
+Use one preset per monitor arrangement or game resolution. The regular `config.toml` remains available as the default profile.
+
+## Mouse calibration
+
+Use the built-in selector when you do not want to enter coordinates manually:
+
+```powershell
+python -m radar_overlay.main --calibrate --config config.toml
+```
+
+1. Drag around the minimap on the CS2 screen.
+2. Drag the second rectangle where the relocated minimap should appear and choose its size.
+3. Adjust the preview: drag inside a selection to move it, or drag its edges/corners to resize it.
+4. Check the two highlighted regions. Press `R` to redo both selections or `Enter` to save.
+5. The selected regions are written to `config.toml` only after pressing `Enter`.
+
+After calibration, start the normal command again. The overlay is click-through and locked in place; run `--calibrate` again to change its position or size. Press Escape during calibration to cancel.
+
+## Overlay hotkeys
+
+These global shortcuts control only this desktop overlay:
+
+- `F8`: toggle the performance HUD
+- `F9`: lock or unlock mouse click-through behavior
+- `Ctrl+Alt+Q`: quit the overlay cleanly
+
+They do not send input to CS2 and do not read or modify game state.
+
+## Performance notes
+
+The configured `target_fps` is an upper scheduling target. The achieved rate is limited by desktop capture, scaling, and Qt rendering. On the development machine, a 248x249 region measured approximately 143.6 Hz with the `mss` backend (300 captures in 2.089 seconds, 6.96 ms per capture). This means 300 Hz and 600 Hz are not achievable for that setup; the HUD reports the actual result.
+
+The application uses per-monitor DPI-aware Qt behavior on Windows. A `SetProcessDpiAwarenessContext()` warning can appear when Windows or Qt has already selected the DPI context. It is non-fatal; if monitors use different scaling percentages, calibrate each layout with the virtual-desktop selector and save a separate preset.
+
 ## Configuration
 
 The application reads a human-readable TOML file. Example values are in [config.example.toml](config.example.toml).
@@ -111,6 +163,10 @@ height = 300
 opacity = 1.0
 click_through = true
 always_on_top = true
+show_fps = true
+show_refresh_hz = true
+show_capture_ms = false
+show_render_ms = false
 
 [performance]
 target_fps = 300

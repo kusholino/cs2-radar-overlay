@@ -53,8 +53,17 @@ class ScreenCapture:
         """Return the current virtual desktop boundaries."""
 
         if self._virtual_screen_bounds is None:
-            width, height = ImageGrab.grab().size
-            self._virtual_screen_bounds = (0, 0, width, height)
+            if self._mss is not None:
+                monitor = self._mss.monitors[0]
+                self._virtual_screen_bounds = (
+                    monitor["left"],
+                    monitor["top"],
+                    monitor["width"],
+                    monitor["height"],
+                )
+            else:
+                width, height = ImageGrab.grab(all_screens=True).size
+                self._virtual_screen_bounds = (0, 0, width, height)
         return self._virtual_screen_bounds
 
     def capture_region(self) -> CaptureFrame:
@@ -65,7 +74,10 @@ class ScreenCapture:
             self.settings.y,
             self.settings.width,
             self.settings.height,
-            *self.get_virtual_screen_bounds()[2:],
+            self.get_virtual_screen_bounds()[2],
+            self.get_virtual_screen_bounds()[3],
+            virtual_left=self.get_virtual_screen_bounds()[0],
+            virtual_top=self.get_virtual_screen_bounds()[1],
         )
 
         if self._dxcam is not None and hasattr(self._dxcam, "grab"):

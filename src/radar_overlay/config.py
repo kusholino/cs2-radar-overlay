@@ -30,6 +30,11 @@ class OverlaySettings:
     click_through: bool = True
     always_on_top: bool = True
     preserve_aspect_ratio: bool = True
+    shape: str = "rectangle"
+    show_fps: bool = True
+    show_refresh_hz: bool = True
+    show_capture_ms: bool = True
+    show_render_ms: bool = True
 
 
 @dataclass(frozen=True)
@@ -55,16 +60,23 @@ def validate_capture_region(
     height: int,
     virtual_width: int | None = None,
     virtual_height: int | None = None,
+    *,
+    virtual_left: int | None = None,
+    virtual_top: int | None = None,
 ) -> tuple[int, int, int, int]:
     """Validate geometry for a desktop capture region."""
 
-    if x < 0 or y < 0:
-        raise ValueError("Capture coordinates must be non-negative.")
     if width <= 0 or height <= 0:
         raise ValueError("Capture width and height must be greater than zero.")
-    if virtual_width is not None and x + width > virtual_width:
+    if (virtual_left is None and x < 0) or (virtual_top is None and y < 0):
+        raise ValueError("Capture coordinates must be within the virtual desktop.")
+    if virtual_left is not None and x < virtual_left:
+        raise ValueError("Capture region exceeds the available virtual screen left edge.")
+    if virtual_top is not None and y < virtual_top:
+        raise ValueError("Capture region exceeds the available virtual screen top edge.")
+    if virtual_width is not None and x + width > virtual_width + (virtual_left or 0):
         raise ValueError("Capture region exceeds the available virtual screen width.")
-    if virtual_height is not None and y + height > virtual_height:
+    if virtual_height is not None and y + height > virtual_height + (virtual_top or 0):
         raise ValueError("Capture region exceeds the available virtual screen height.")
     return (x, y, width, height)
 
@@ -75,15 +87,16 @@ def validate_overlay_geometry(
     width: int,
     height: int,
     opacity: float,
+    shape: str = "rectangle",
 ) -> tuple[int, int, int, int, float]:
     """Validate destination overlay geometry and opacity."""
 
-    if x < 0 or y < 0:
-        raise ValueError("Overlay coordinates must be non-negative.")
     if width <= 0 or height <= 0:
         raise ValueError("Overlay width and height must be greater than zero.")
     if not 0.0 <= opacity <= 1.0:
         raise ValueError("Overlay opacity must be between 0.0 and 1.0 inclusive.")
+    if shape not in {"rectangle", "circle"}:
+        raise ValueError("Overlay shape must be 'rectangle' or 'circle'.")
     return (x, y, width, height, opacity)
 
 
@@ -135,6 +148,12 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
         opacity=float(overlay_data.get("opacity", 1.0)),
         click_through=bool(overlay_data.get("click_through", True)),
         always_on_top=bool(overlay_data.get("always_on_top", True)),
+        preserve_aspect_ratio=bool(overlay_data.get("preserve_aspect_ratio", True)),
+        shape=str(overlay_data.get("shape", "rectangle")),
+        show_fps=bool(overlay_data.get("show_fps", True)),
+        show_refresh_hz=bool(overlay_data.get("show_refresh_hz", True)),
+        show_capture_ms=bool(overlay_data.get("show_capture_ms", True)),
+        show_render_ms=bool(overlay_data.get("show_render_ms", True)),
     )
     performance = PerformanceSettings(target_fps=int(performance_data.get("target_fps", 240)))
 
@@ -147,8 +166,53 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
         overlay.width,
         overlay.height,
         overlay.opacity,
+        overlay.shape,
     )
     return AppConfig(capture=capture, overlay=overlay, performance=performance)
+
+
+def save_config(config: AppConfig, path: str | Path = "config.toml") -> None:
+    """Write the application configuration as human-readable TOML."""
+
+    config_path = Path(path)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        f"""[capture]
+x = {config.capture.x}
+y = {config.capture.y}
+width = {config.capture.width}
+height = {config.capture.height}
+
+[overlay]
+x = {config.overlay.x}
+y = {config.overlay.y}
+width = {config.overlay.width}
+height = {config.overlay.height}
+opacity = {config.overlay.opacity}
+click_through = {str(config.overlay.click_through).lower()}
+always_on_top = {str(config.overlay.always_on_top).lower()}
+preserve_aspect_ratio = {str(config.overlay.preserve_aspect_ratio).lower()}
+shape = "{config.overlay.shape}"
+show_fps = {str(config.overlay.show_fps).lower()}
+show_refresh_hz = {str(config.overlay.show_refresh_hz).lower()}
+show_capture_ms = {str(config.overlay.show_capture_ms).lower()}
+show_render_ms = {str(config.overlay.show_render_ms).lower()}
+
+[performance]
+target_fps = {config.performance.target_fps}
+""",
+        encoding="utf-8",
+    )
+
+
+def preset_path(name: str, directory: str | Path = "presets") -> Path:
+    """Return a normalized path for a named TOML preset."""
+
+    filename = name if name.endswith(".toml") else f"{name}.toml"
+    path = Path(directory) / filename
+    if path.name != filename or path.is_absolute() or ".." in path.parts:
+        raise ValueError("Preset names must be simple filenames.")
+    return path
 
 
 DEFAULT_CONFIG = AppConfig(
