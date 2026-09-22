@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import signal
 import sys
-import time
 from pathlib import Path
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QApplication
 
 from radar_overlay.capture import ScreenCapture
@@ -29,7 +29,7 @@ def build_app(config: AppConfig | None = None) -> tuple[QApplication, ScreenCapt
     overlay = OverlayWindow(runtime_config.overlay)
     tracker = PerformanceTracker()
     timer = QTimer()
-    timer.setTimerType(0)
+    timer.setTimerType(Qt.TimerType.PreciseTimer)
 
     def on_tick() -> None:
         tracker.begin_capture()
@@ -42,15 +42,28 @@ def build_app(config: AppConfig | None = None) -> tuple[QApplication, ScreenCapt
             frame.image.height,
             runtime_config.overlay.width,
             runtime_config.overlay.height,
-            preserve_aspect_ratio=True,
+            preserve_aspect_ratio=runtime_config.overlay.preserve_aspect_ratio,
         )
-        overlay.resize(render_width, render_height)
-        overlay.update_image(frame.image.resize((render_width, render_height), resample=None))
+
+        if overlay.width() != render_width or overlay.height() != render_height:
+            overlay.resize(render_width, render_height)
+
+        display_image = frame.image
+        if display_image.size != (render_width, render_height):
+            display_image = display_image.resize((render_width, render_height), resample=None)
+        overlay.update_image(display_image)
         tracker.end_render()
+        overlay.update_stats(tracker.snapshot())
+
+    def stop_app() -> None:
+        timer.stop()
+        app.quit()
 
     timer.timeout.connect(on_tick)
     interval_ms = max(1, int(1000 / runtime_config.performance.target_fps))
     timer.start(interval_ms)
+
+    signal.signal(signal.SIGINT, lambda *_: stop_app())
     return app, capture, overlay, tracker, timer
 
 
@@ -63,7 +76,9 @@ def main() -> int:
 
     app, _, overlay, _, _ = build_app(config)
     overlay.show()
-    return app.exec()
+    exit_code = app.exec()
+    overlay.close()
+    return exit_code
 
 
 if __name__ == "__main__":

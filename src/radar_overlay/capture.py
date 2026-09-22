@@ -14,6 +14,11 @@ try:  # pragma: no cover - environment-specific import
 except ImportError:  # pragma: no cover - fallback if dxcam is not installed
     dxcam = None
 
+try:  # pragma: no cover - environment-specific import
+    import mss
+except ImportError:  # pragma: no cover - fallback if mss is not installed
+    mss = None
+
 
 @dataclass
 class CaptureFrame:
@@ -29,6 +34,8 @@ class ScreenCapture:
     def __init__(self, settings: CaptureSettings):
         self.settings = settings
         self._dxcam = None
+        self._mss = None
+        self._virtual_screen_bounds: tuple[int, int, int, int] | None = None
 
         if dxcam is not None:  # pragma: no cover - optional runtime dependency
             try:
@@ -36,11 +43,19 @@ class ScreenCapture:
             except Exception:  # pragma: no cover - fall back cleanly if unsupported
                 self._dxcam = None
 
+        if self._dxcam is None and mss is not None:  # pragma: no cover - Windows-only backend
+            try:
+                self._mss = mss.mss()
+            except Exception:
+                self._mss = None
+
     def get_virtual_screen_bounds(self) -> tuple[int, int, int, int]:
         """Return the current virtual desktop boundaries."""
 
-        width, height = ImageGrab.grab().size
-        return (0, 0, width, height)
+        if self._virtual_screen_bounds is None:
+            width, height = ImageGrab.grab().size
+            self._virtual_screen_bounds = (0, 0, width, height)
+        return self._virtual_screen_bounds
 
     def capture_region(self) -> CaptureFrame:
         """Capture and return the configured rectangle."""
@@ -58,6 +73,11 @@ class ScreenCapture:
             if region is not None:
                 image = Image.fromarray(region)
                 return CaptureFrame(image=image, captured_at=0.0)
+
+        if self._mss is not None:
+            region = self._mss.grab({"left": x, "top": y, "width": width, "height": height})
+            image = Image.frombytes("RGB", region.size, region.rgb)
+            return CaptureFrame(image=image, captured_at=0.0)
 
         image = ImageGrab.grab(bbox=(x, y, x + width, y + height))
         return CaptureFrame(image=image, captured_at=0.0)

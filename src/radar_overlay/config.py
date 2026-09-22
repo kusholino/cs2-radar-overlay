@@ -29,6 +29,7 @@ class OverlaySettings:
     opacity: float = 1.0
     click_through: bool = True
     always_on_top: bool = True
+    preserve_aspect_ratio: bool = True
 
 
 @dataclass(frozen=True)
@@ -152,6 +153,6 @@ def load_config(path: str | Path = "config.toml") -> AppConfig:
 
 DEFAULT_CONFIG = AppConfig(
     capture=CaptureSettings(x=0, y=0, width=300, height=300),
-    overlay=OverlaySettings(x=0, y=0, width=300, height=300, opacity=1.0, click_through=True, always_on_top=True),
+    overlay=OverlaySettings(x=0, y=0, width=300, height=300, opacity=1.0, click_through=True, always_on_top=True, preserve_aspect_ratio=True),
     performance=PerformanceSettings(target_fps=240),
 )

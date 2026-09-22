@@ -69,6 +69,7 @@ The project does not do any of the following:
 - PySide6
 - Pillow
 - dxcam (preferred if available)
+- mss (fast fallback when dxcam is unavailable)
 
 ## Quick start
 
