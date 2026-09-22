@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
-
 from PIL import Image, ImageGrab
 
 from radar_overlay.config import CaptureSettings, validate_capture_region
@@ -36,6 +34,7 @@ class ScreenCapture:
         self._dxcam = None
         self._mss = None
         self._virtual_screen_bounds: tuple[int, int, int, int] | None = None
+        self._reported_failures: set[str] = set()
 
         if dxcam is not None:  # pragma: no cover - optional runtime dependency
             try:
@@ -81,18 +80,31 @@ class ScreenCapture:
         )
 
         if self._dxcam is not None and hasattr(self._dxcam, "grab"):
-            region = self._dxcam.grab(region=(x, y, x + width, y + height))
-            if region is not None:
-                image = Image.fromarray(region)
-                return CaptureFrame(image=image, captured_at=0.0)
+            try:
+                region = self._dxcam.grab(region=(x, y, x + width, y + height))
+                if region is not None:
+                    image = Image.fromarray(region)
+                    return CaptureFrame(image=image, captured_at=0.0)
+            except Exception as error:
+                self._report_backend_failure("dxcam", error)
+                self._dxcam = None
 
         if self._mss is not None:
-            region = self._mss.grab({"left": x, "top": y, "width": width, "height": height})
-            image = Image.frombytes("RGB", region.size, region.rgb)
-            return CaptureFrame(image=image, captured_at=0.0)
+            try:
+                region = self._mss.grab({"left": x, "top": y, "width": width, "height": height})
+                image = Image.frombytes("RGB", region.size, region.rgb)
+                return CaptureFrame(image=image, captured_at=0.0)
+            except Exception as error:
+                self._report_backend_failure("mss", error)
+                self._mss = None
 
         image = ImageGrab.grab(bbox=(x, y, x + width, y + height))
         return CaptureFrame(image=image, captured_at=0.0)
+
+    def _report_backend_failure(self, backend: str, error: Exception) -> None:
+        if backend not in self._reported_failures:
+            print(f"{backend} capture failed; falling back to ImageGrab: {error}")
+            self._reported_failures.add(backend)
 
 
 __all__ = ["CaptureFrame", "ScreenCapture"]
