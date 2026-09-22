@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cs2-radar-overlay"
+version = "0.1.0"
+description = "Purely visual Windows radar relocation overlay for Counter-Strike 2"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [
+  { name = "CS2 Radar Overlay contributors" }
+]
+license = "MIT"
+keywords = ["cs2", "overlay", "radar", "desktop-capture", "windows"]
+dependencies = [
+  "Pillow>=10.0.0; platform_system == 'Windows'",
+  "PySide6>=6.7.0; platform_system == 'Windows'",
+  "dxcam>=0.0.1; platform_system == 'Windows'"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0.0",
+  "pytest-cov>=5.0.0"
+]
+
+[project.scripts]
+cs2-radar-overlay = "radar_overlay.main:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]

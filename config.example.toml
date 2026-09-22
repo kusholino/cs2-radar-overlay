@@ -1,0 +1,17 @@
+[capture]
+x = 0
+y = 0
+width = 300
+height = 300
+
+[overlay]
+x = 810
+y = 1150
+width = 300
+height = 300
+opacity = 1.0
+click_through = true
+always_on_top = true
+
+[performance]
+target_fps = 300
