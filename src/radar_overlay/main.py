@@ -32,6 +32,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--config", type=Path, default=Path("config.toml"), help="Path to the TOML config file")
     parser.add_argument("--preset", help="Load a named preset from the presets directory")
     parser.add_argument(
+        "--edit",
+        action="store_true",
+        help="Edit the existing source and destination regions without selecting them again",
+    )
+    parser.add_argument(
         "--calibrate",
         action="store_true",
         help="Select the source and destination rectangles with the mouse and save them",
@@ -102,7 +107,7 @@ def build_app(config: AppConfig | None = None) -> tuple[QApplication, ScreenCapt
 def main() -> int:
     args = parse_args()
     config_path = preset_path(args.preset) if args.preset else args.config
-    if args.calibrate:
+    if args.calibrate or args.edit:
         def on_complete(source: tuple[int, int, int, int], destination: tuple[int, int, int, int]) -> None:
             current = load_config(config_path) if config_path.exists() else DEFAULT_CONFIG
             save_config(
@@ -129,9 +134,23 @@ def main() -> int:
             )
 
         current_shape = args.shape
-        if current_shape is None and config_path.exists():
-            current_shape = load_config(config_path).overlay.shape
-        return run_calibration(on_complete, shape=current_shape or "rectangle")
+        current = load_config(config_path) if config_path.exists() else DEFAULT_CONFIG
+        if current_shape is None:
+            current_shape = current.overlay.shape
+        initial_source = current.capture if args.edit else None
+        initial_destination = (
+            (current.overlay.x, current.overlay.y, current.overlay.width, current.overlay.height)
+            if args.edit
+            else None
+        )
+        return run_calibration(
+            on_complete,
+            shape=current_shape or "rectangle",
+            initial_source=(initial_source.x, initial_source.y, initial_source.width, initial_source.height)
+            if initial_source
+            else None,
+            initial_destination=initial_destination,
+        )
 
     try:
         config = load_config(config_path)

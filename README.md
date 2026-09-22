@@ -120,6 +120,14 @@ Use the built-in selector when you do not want to enter coordinates manually:
 python -m radar_overlay.main --calibrate --config config.toml
 ```
 
+To adjust an existing configuration without selecting both regions again:
+
+```powershell
+python -m radar_overlay.main --edit --config config.toml
+```
+
+The existing source and destination open directly in the editable preview. Drag inside a region to move it, drag an edge or corner to resize it, press `Enter` to save, `R` to start over, or `Escape` to cancel without changing the file. The same works with presets, for example `--edit --preset office-1440p`.
+
 1. Drag around the minimap on the CS2 screen.
 2. Drag the second rectangle where the relocated minimap should appear and choose its size.
 3. Adjust the preview: drag inside a selection to move it, or drag its edges/corners to resize it.
@@ -183,7 +191,7 @@ See [docs/architecture.md](docs/architecture.md) for the architecture overview, 
 
 ## Project status
 
-This repository is currently at version 0.1.0.
+This repository is currently at version 0.2.0.
 
 ## License
 

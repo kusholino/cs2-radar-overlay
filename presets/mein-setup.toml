@@ -1,0 +1,23 @@
+[capture]
+x = 25
+y = 24
+width = 251
+height = 251
+
+[overlay]
+x = 706
+y = 840
+width = 212
+height = 183
+opacity = 1.0
+click_through = true
+always_on_top = true
+preserve_aspect_ratio = false
+shape = "circle"
+show_fps = false
+show_refresh_hz = false
+show_capture_ms = false
+show_render_ms = false
+
+[performance]
+target_fps = 240

@@ -17,15 +17,17 @@ class RegionSelector(QWidget):
         self,
         on_complete: Callable[[tuple[int, int, int, int], tuple[int, int, int, int]], None],
         shape: str = "rectangle",
+        initial_source: tuple[int, int, int, int] | None = None,
+        initial_destination: tuple[int, int, int, int] | None = None,
     ) -> None:
         super().__init__()
         self._on_complete = on_complete
         self._shape = shape
         virtual_geometry = QApplication.primaryScreen().virtualGeometry()
         self._virtual_origin = QPoint(virtual_geometry.left(), virtual_geometry.top())
-        self._stage = 0
-        self._source: tuple[int, int, int, int] | None = None
-        self._destination: tuple[int, int, int, int] | None = None
+        self._stage = 2 if initial_source and initial_destination else 0
+        self._source = initial_source
+        self._destination = initial_destination
         self._current_rect: QRect | None = None
         self._active_region: str | None = None
         self._drag_mode: str | None = None
@@ -68,9 +70,16 @@ class RegionSelector(QWidget):
         self.setGeometry(virtual_geometry)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setMouseTracking(True)
+        if self._stage == 2:
+            self._refresh_preview()
+            self._hint.setText(
+                "Bestehende Config bearbeiten: Ziehen = verschieben, Kanten/Ecken = Größe ändern | "
+                "Enter = speichern | R = neu | Esc = abbrechen"
+            )
+            self._hint.adjustSize()
 
     def _draw_region(self, painter: QPainter, region: tuple[int, int, int, int]) -> None:
-        rectangle = QRect(*region)
+        rectangle = self._to_local_rect(QRect(*region))
         if self._shape == "circle":
             painter.drawEllipse(rectangle)
         else:
@@ -78,7 +87,10 @@ class RegionSelector(QWidget):
 
     def _region_rect(self, name: str) -> QRect:
         region = self._source if name == "source" else self._destination
-        return QRect(*(region or (0, 0, 0, 0)))
+        return self._to_local_rect(QRect(*(region or (0, 0, 0, 0))))
+
+    def _to_local_rect(self, rectangle: QRect) -> QRect:
+        return rectangle.translated(-self._virtual_origin)
 
     def _hit_test(self, position: QPoint, name: str) -> str | None:
         rectangle = self._region_rect(name)
@@ -98,12 +110,7 @@ class RegionSelector(QWidget):
         rectangle.setWidth(max(2, rectangle.width()))
         rectangle.setHeight(max(2, rectangle.height()))
         selected = (rectangle.x(), rectangle.y(), rectangle.width(), rectangle.height())
-        selected = (
-            selected[0] + self._virtual_origin.x(),
-            selected[1] + self._virtual_origin.y(),
-            selected[2],
-            selected[3],
-        )
+        selected = (selected[0] + self._virtual_origin.x(), selected[1] + self._virtual_origin.y(), selected[2], selected[3])
         if name == "source":
             self._source = selected
         else:
@@ -112,8 +119,8 @@ class RegionSelector(QWidget):
     def _refresh_preview(self) -> None:
         if self._source is None or self._destination is None:
             return
-        source_rect = QRect(*self._source)
-        destination_rect = QRect(*self._destination)
+        source_rect = self._to_local_rect(QRect(*self._source))
+        destination_rect = self._to_local_rect(QRect(*self._destination))
         preview = self._background_pixmap.copy(source_rect)
         self._preview.setPixmap(preview.scaled(
             destination_rect.width(),
@@ -205,7 +212,12 @@ class RegionSelector(QWidget):
         if rectangle.width() < 2 or rectangle.height() < 2:
             return
 
-        selected = (rectangle.x(), rectangle.y(), rectangle.width(), rectangle.height())
+        selected = (
+            rectangle.x() + self._virtual_origin.x(),
+            rectangle.y() + self._virtual_origin.y(),
+            rectangle.width(),
+            rectangle.height(),
+        )
         if self._stage == 0:
             self._source = selected
             self._stage = 1
@@ -248,6 +260,8 @@ class RegionSelector(QWidget):
 def run_calibration(
     on_complete: Callable[[tuple[int, int, int, int], tuple[int, int, int, int]], None],
     shape: str = "rectangle",
+    initial_source: tuple[int, int, int, int] | None = None,
+    initial_destination: tuple[int, int, int, int] | None = None,
 ) -> int:
     """Run the interactive selector and return its Qt exit code."""
 
@@ -256,7 +270,12 @@ def run_calibration(
         on_complete(source, destination)
         app.quit()
 
-    selector = RegionSelector(finish, shape=shape)
+    selector = RegionSelector(
+        finish,
+        shape=shape,
+        initial_source=initial_source,
+        initial_destination=initial_destination,
+    )
     selector.show()
     return app.exec()
 
