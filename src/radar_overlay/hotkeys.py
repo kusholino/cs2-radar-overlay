@@ -43,10 +43,14 @@ class GlobalHotkeys(QAbstractNativeEventFilter):
             self._user32.UnregisterHotKey(None, hotkey_id)
         self._registered.clear()
 
-    def nativeEventFilter(self, event_type: QByteArray, message: int) -> tuple[bool, int]:
+    def nativeEventFilter(self, event_type: QByteArray, message: object) -> tuple[bool, int]:
         if event_type not in (b"windows_generic_MSG", b"windows_dispatcher_MSG"):
             return False, 0
-        msg = ctypes.wintypes.MSG.from_address(message)
+        try:
+            message_address = int(message)  # type: ignore[arg-type]
+            msg = ctypes.wintypes.MSG.from_address(message_address)
+        except (TypeError, ValueError):
+            return False, 0
         if msg.message != WM_HOTKEY:
             return False, 0
         callbacks = {1: self._on_hud_toggle, 2: self._on_lock_toggle, 3: self._on_quit}
