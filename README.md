@@ -75,6 +75,30 @@ The project does not do any of the following:
 
 ## Quick start
 
+### Windows first-time setup
+
+Install Python 3.11+ first, then run this command from PowerShell in the project folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+The script creates `.venv`, installs the application and developer dependencies, creates `config.toml` from the example when needed, and creates the `presets` folder when needed.
+
+Start the overlay afterwards:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+`start.ps1` automatically activates `.venv` and forwards additional options to the overlay. For example, to start a preset:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start.ps1 --preset mein-setup
+```
+
+### Manual setup
+
 1. Install Python 3.11+
 2. Install the project in editable mode:
 
